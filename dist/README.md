@@ -2,6 +2,8 @@
 
 Run the genuine Muse client in Buzz using your own Muse subscription — not a pay-as-you-go Model API key. This independent MIT plugin adds **Muse (subscription)** alongside Buzz's built-in harnesses. No Buzz patch or downgrade is required.
 
+[Setup](#quick-start) · [Multiple computers](#use-it-from-multiple-computers) · [Sign-in](#sign-in-and-credentials) · [Troubleshooting](#troubleshooting) · [Security](#security-and-permissions) · [Development](#development)
+
 Not affiliated with or endorsed by Meta or Block. Use your own account and follow Muse's terms of use.
 
 ## How it works
@@ -20,18 +22,20 @@ Install these on the computer that will **run the agent**:
 
 - **Buzz desktop 1.0.2.** External harness APIs are previews; other versions need verification.
 - **Node.js 20 or newer**, available as `node` to the desktop application.
-- **Muse**, installed and signed in: run `muse login` once in a terminal and complete the sign-in for your Muse subscription.
-- **muse-acp 0.1.0 or newer**: `npm install -g muse-acp` (this also places `muse-acp` in your npm-global bin directory, where the plugin looks for it).
+- **Muse**, installed and signed in on that computer (see [Sign-in and credentials](#sign-in-and-credentials)).
+- **muse-acp 0.1.0 or newer**: `npm install -g muse-acp`. This places `muse-acp` in your npm-global bin directory, where the plugin looks for it.
 
-Check in a terminal:
+Check the executables in a terminal:
 
-```
+```sh
 node --version
 muse --version
 muse-acp --help
 ```
 
-Restart Buzz after installing Node, Muse, or muse-acp — a command working in your terminal does not guarantee that an already-running GUI has the updated PATH.
+Restart Buzz after installing Node, Muse, or muse-acp if its running desktop process has an old PATH. A command working in your terminal does not guarantee that an already-running GUI can find it.
+
+On macOS, Muse keeps its sign-in in your login Keychain. Sign in from a desktop terminal session in the same OS account that runs Buzz; an SSH-only session may not be able to reach the Keychain.
 
 ## Quick start
 
@@ -42,28 +46,40 @@ In Buzz, open **Settings → Plugins → Manage plugins → Add**. In the Git im
 | Field | Value |
 | --- | --- |
 | Git or GitHub repository | `https://github.com/BitsOfJT/buzz-muse-subscription` |
-| Ref | `v1.0.0` |
+| Ref | `v1.0.1` |
 | Folder | `dist` |
 
 Choose **Find**, review the plugin and its declared computer access, then **Install plugin** with **Enable plugin** selected.
 
 Built artifacts are committed. Buzz does not run npm or compile the source. Alternatively, download the repository, extract it, and use **Add from folder → Browse** to select its `dist` directory — not the repository root or `src`.
 
-### 2. Check setup
+Use `v1.0.1` or another reviewed release tag for reproducible installation. `main` changes over time.
 
-Open **Settings → Muse (subscription)**. **Check status** detects muse-acp, asks the adapter for its engine handshake (which starts `muse serve` locally), and reports the Muse version it can find. The check spends no model request and does not remotely validate your subscription — the first agent turn does that.
+### 2. Sign in and check setup
+
+If you have not already, sign the Muse client in once, in a terminal on the agent host:
+
+```sh
+muse login
+```
+
+Complete the sign-in for your Muse subscription. There is nothing to copy into Buzz: no token field exists, and the plugin holds no credentials.
+
+Then open **Settings → Muse (subscription)** and choose **Check status**. It detects muse-acp, asks the adapter for its engine handshake (which starts `muse serve` locally), and reports the Muse version it can find. The check spends no model request and does not remotely validate your subscription — the first agent turn does that.
 
 ### 3. Create the agent
 
-Create an agent and choose **Muse (subscription)** in the **Harness** menu. That exact entry — the built-in harnesses are different products and will not use your Muse subscription.
+Create an agent and choose **Muse (subscription)** in the **Harness** menu. Choose that exact entry — the built-in harnesses are different products and will not use your Muse subscription.
 
 | Setting | What to choose |
 | --- | --- |
-| Working folder | The default `~/.buzz/muse-subscription-workspace` is created automatically. For a project, enter an existing absolute or `~/…` directory on the **agent host**. |
+| Working folder | The default `~/.buzz/muse-subscription-workspace` is created automatically. For a project, enter an existing absolute or `~/…` directory on the **agent host**, not on another computer. |
 | muse-acp executable | Leave blank for automatic detection. Otherwise enter the absolute path to the `muse-acp` executable on the agent host. |
 | Permissions | Start with **Default**. Choose **Accept edits** only if you want file edits approved automatically; it never approves shell commands or other tools. |
 | Conversation sessions | **One per thread** keeps unrelated threads separate. **One per channel** shares context within that channel. |
-| Agent instructions | Your standing instructions for this agent; never include credentials. Delivered as a preamble on the first turn of each new conversation (see Limitations). |
+| Agent instructions | Your standing instructions for this agent; never include credentials. They are delivered as a preamble on the first turn of each new conversation (see [Known limitations](#known-limitations)). |
+
+When setup is ready, choose **Create agent**.
 
 ### 4. Send a first message
 
@@ -75,7 +91,31 @@ If Buzz shows a **reply** count beneath the message, open that thread to see the
 
 An authentication failure is reported in the conversation — it means the Muse client on the host is not signed in. Fix it with `muse login` in a terminal on that host; never paste credentials into a chat message.
 
-## Known limitations (v1.0.0)
+## Use it from multiple computers
+
+Run the agent on one computer that stays online with Buzz open and Muse signed in. Sign into the same Buzz community from your other computers and message the hosted agent there.
+
+You do not need a separate Muse login on every computer merely to message that agent. Install this plugin, Node, Muse, and muse-acp on another computer only if that computer will **host its own agent**. Workspaces and executable paths always refer to the host. The plugin does not sync or distribute sign-ins between devices.
+
+Closing Buzz or suspending the host can stop new turns. This is not a background cloud service.
+
+## Sign-in and credentials
+
+There is no token to generate, replace, or remove — that is the point of driving the genuine client instead of holding a credential.
+
+- **Sign in:** `muse login` in a terminal on the agent host. Muse manages its own sign-in state from then on.
+- **Sign out or switch accounts:** use Muse's own commands on the host. The plugin has nothing to delete; uninstalling it removes no credentials because it never stored any.
+- **Expiry:** if the client's sign-in lapses, the first failing turn reports it in the conversation. Run `muse login` again on the host.
+
+## Agent settings and conversation resets
+
+In Buzz 1.0.2, open the agent's card, choose **Identity**, and scroll past the identity details to the harness controls. Edit the configuration and choose **Save settings**. Saving does not stop work already running; updated settings apply to later turns. Changing the workspace, adapter path, or conversation scope starts a new session association. Updated instructions do not discard the session.
+
+**Reset saved conversations…** stops the agent's active turns and clears its saved session associations. It does not undo previous tool actions or delete Muse's transcript files. Failed or interrupted runs are not advertised as safe for automatic replay: retry deliberately if an earlier turn may already have performed an action.
+
+When a new Muse session is required, Buzz supplies a bounded recent history, not a complete archive. Keep durable project instructions in the agent's configuration rather than relying on an old chat message. Standalone watch/timer jobs are not implemented, and runs interrupted by quitting Buzz are not automatically resumed.
+
+## Known limitations
 
 These come from muse-acp 0.1.x, not from Buzz:
 
@@ -85,25 +125,19 @@ These come from muse-acp 0.1.x, not from Buzz:
 - **Session resume is best-effort.** Turns resume through ACP `session/load`. If the engine no longer has the session, the bridge starts a fresh one and Buzz supplies recent conversation history.
 - **Replies are capped at 4 MB.** A single reply longer than that is truncated and marked as truncated rather than failing the turn.
 
-## Permissions
-
-This harness has no interactive approval prompt. When Muse asks permission for a tool:
-
-- **Default**: the request is refused and reported in the conversation ("Muse permission denied: …"). Nothing is silently approved.
-- **Accept edits**: file-edit requests (`edit` kind) are approved automatically. Everything else follows Default.
-
-Neither mode is an OS sandbox, and no permission bypass exists in this plugin.
-
 ## Troubleshooting
 
 | Symptom | Check or fix |
 | --- | --- |
 | Subscription harness is missing | Enable the plugin in Manage plugins. Import the built `dist` folder and use Buzz 1.0.2. |
-| muse-acp was not found | Run `npm install -g muse-acp`, restart Buzz, or set the absolute adapter path in the agent's Settings. |
+| muse-acp was not found | Run `npm install -g muse-acp`, restart Buzz, or set the absolute adapter path in the agent's settings. |
+| Node/helper cannot launch | Install native Node 20+, ensure the desktop application can find `node`, and restart Buzz after PATH changes. |
 | Engine handshake does not answer | Confirm Muse is installed (`muse --version`) and signed in (`muse login`). The adapter starts `muse serve`; if the client is missing or signed out, the handshake fails. |
-| First turn says Muse is not signed in | Run `muse login` in a terminal on the agent host, in the same OS account that runs Buzz, then try again. On macOS, sign in from a desktop terminal session — the client's credentials live behind your login Keychain. |
-| Changed workspace or inconsistent context | Stop active work, save the correct host-side workspace, then use **Reset saved conversations…** in the agent's Settings if needed. Previous file changes are not rolled back. |
-| A model turn fails mid-run | The report in the conversation carries the engine's stop reason. Retry deliberately if an earlier turn may already have performed an action — failed or interrupted runs are not advertised as safe for automatic replay. |
+| First turn says Muse is not signed in | Run `muse login` in a terminal on the agent host, in the same OS account that runs Buzz. On macOS, sign in from a desktop terminal session — the client's credentials live behind your login Keychain, and an SSH-only session may be refused. |
+| An action needs approval | This harness has no interactive terminal permission prompt. In **Default** mode the action is denied and reported. **Accept edits** permits file edits, not arbitrary shell commands. |
+| Changed workspace or inconsistent context | Stop active work, save the correct host-side workspace, then use **Reset saved conversations…** if needed. Previous file changes are not rolled back. |
+| A model turn fails mid-run | The report in the conversation carries the engine's stop reason. Retry deliberately if an earlier turn may already have performed an action. |
+| “Ready” but no answer is visible | Open the message's reply thread. Confirm the host is online and the message mentions an agent authorized for that conversation. |
 
 ## Security and permissions
 
@@ -111,14 +145,17 @@ This is a **trusted local plugin, not an OS sandbox**. Muse and its approved too
 
 - The plugin holds **no credentials at all**: no token field, no credential-store entries, no credential environment variables. Muse's own sign-in state stays inside the Muse client.
 - The bridge builds a cleaned environment for the adapter process: code-injection variables (`NODE_OPTIONS`, `LD_*`, `DYLD_*`, …), proxy overrides, and stray `MUSE_*` API-key/token variables are removed so nothing can hijack the subscription session or reroute its traffic.
-- The bridge validates every request (bounded sizes, fixed field sets, loopback-free design — it talks to the adapter over stdio only) and never renders the adapter's stderr, which may contain local paths.
-- Agent instructions and prompts are processed locally by the Muse client; Muse stores conversation transcripts in its normal local state.
-- Updates are explicit. Reimport a reviewed release tag to update; review source changes and computer-access grants before updating. `SHA256SUMS` detects changed bytes but is not a publisher signature.
+- The bridge validates every request (bounded sizes, fixed field sets) and talks to the adapter over stdio only — no network listener. It never renders the adapter's stderr, which may contain local paths.
+- When Muse asks permission for a tool: **Default** refuses and reports it in the conversation; **Accept edits** approves file-edit (`edit` kind) requests only. Approvals are one-time, never "always". No permission-bypass mode exists in this plugin.
+- Agent instructions and prompts are processed locally by the Muse client; Muse stores conversation transcripts, prompts, and tool results in its normal local state. This plugin does not encrypt those transcripts.
+- Updates are explicit. The manifest omits the optional update policy, so reimport a reviewed release tag to update; review source changes and computer-access grants before updating. `SHA256SUMS` detects changed bytes but is not a publisher signature.
+
+Use an immutable release tag or commit when reproducibility matters. `main` changes over time.
 
 ## Development
 
-```
-npm install
+```sh
+npm ci --ignore-scripts
 npm test
 npm run build
 ```
@@ -133,14 +170,23 @@ npm run build
 | `src/bridge-cli.mjs` | Bounded stdin request and JSON-lines response entrypoint |
 | `src/bridge.mjs` | Request validation, adapter/Muse discovery, the ACP client, and permission policy |
 
-The bridge bundle is embedded in `dist/plugin.js` as source text and run with `node -e`; it has no runtime imports or downloaded helpers. Tests drive the bridge against a fake ACP agent (`test/fake-acp.mjs`) and spend no subscription requests.
+The bridge bundle is embedded in `dist/plugin.js` as source text and run with `node -e`; it has no runtime imports, separate runtime assets, or downloaded helper executable. The plugin uses Buzz's React instance.
 
-The reference contracts are Buzz v1.0.2's external harness kit, ACP protocol version 1, and muse-acp 0.1.0.
+The reference contracts are [Buzz v1.0.2](https://github.com/block/buzz-app/tree/v1.0.2)'s external harness kit, ACP protocol version 1, and muse-acp 0.1.0. Buzz, Muse, and muse-acp retain their own licenses and are not redistributed here.
+
+### Verification
+
+- **Tests:** 12 bridge tests drive the shipped bridge against a fake ACP agent (`test/fake-acp.mjs`), covering request validation, environment hygiene, the permission policy (default-deny and accept-edits), session resume including history-replay handling, and output caps. They spend no subscription requests.
+- **Bundle smoke:** after building, the compiled `dist/plugin.js` bridge is exercised through the same `node -e` boundary Buzz uses, against the fake adapter — status and a full scripted turn.
+- **macOS desktop (build machine):** the built bridge, run against the real muse-acp 0.1.0, completed the genuine engine handshake (`muse serve` answered; Muse 1.4.20 detected), and a fresh clone of the published release verifies `SHA256SUMS` and passes all tests.
+- **Not yet exercised end-to-end:** a model turn inside the Buzz UI. The remote test prompt reached the engine and created a session, but the turn was cancelled because the host's Muse sign-in sits behind the macOS login Keychain, which refuses non-desktop (SSH) processes. The first in-Buzz message is the remaining check; the plugin's own layers are all verified up to that boundary.
+
+Do not commit credentials, private emails, hostnames, real account paths, network addresses, or unredacted screenshots. Use synthetic fixtures and relative/home-relative examples.
 
 ## Acknowledgements
 
-The concept — a Buzz plugin that adds a subscription harness beside the built-ins by driving the genuine client — follows [kvncrw/buzz-claude-subscription](https://github.com/kvncrw/buzz-claude-subscription) by Kevin Crawley (MIT), an independent implementation for Anthropic's Claude Code. This repository is a separate, original implementation for Meta's Muse, built on [muse-acp](https://github.com/sanjay3290/muse-acp) by sanjay3290 (Apache-2.0). Buzz, Muse, and muse-acp retain their own licenses and are not redistributed here.
+The concept — a Buzz plugin that adds a subscription harness beside the built-ins by driving the genuine client — follows [kvncrw/buzz-claude-subscription](https://github.com/kvncrw/buzz-claude-subscription) by Kevin Crawley (MIT), an independent implementation for Anthropic's Claude Code. This repository is a separate, original implementation for Meta's Muse, built on [muse-acp](https://github.com/sanjay3290/muse-acp) by sanjay3290 (Apache-2.0).
 
 ## License
 
-MIT, copyright Jordan Thompson (BitsOfJT). See `LICENSE`.
+[MIT](LICENSE), copyright Jordan Thompson (`BitsOfJT`).
