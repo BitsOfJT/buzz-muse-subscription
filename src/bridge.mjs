@@ -16,7 +16,7 @@ import { StringDecoder } from 'node:string_decoder';
 // adapter (enforced). output: max accumulated reply text, in UTF-8 bytes —
 // the plugin-side line limit leaves escaping headroom over this cap.
 export const LIMITS = Object.freeze({ request: 4 * 1024 * 1024, line: 16 * 1024 * 1024, output: 4 * 1024 * 1024 });
-export const PLUGIN_VERSION = '1.1.0';
+export const PLUGIN_VERSION = '1.1.1';
 
 // The only model ids a run may pin. Anything else is rejected before it can
 // reach a command line or a generated script; keep in step with MODELS in

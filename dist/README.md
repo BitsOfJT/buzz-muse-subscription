@@ -46,14 +46,14 @@ In Buzz, open **Settings → Plugins → Manage plugins → Add**. In the Git im
 | Field | Value |
 | --- | --- |
 | Git or GitHub repository | `https://github.com/BitsOfJT/buzz-muse-subscription` |
-| Ref | `v1.1.0` |
+| Ref | `main` |
 | Folder | `dist` |
 
 Choose **Find**, review the plugin and its declared computer access, then **Install plugin** with **Enable plugin** selected.
 
 Built artifacts are committed. Buzz does not run npm or compile the source. Alternatively, download the repository, extract it, and use **Add from folder → Browse** to select its `dist` directory — not the repository root or `src`.
 
-Use `v1.1.0` or another reviewed release tag for reproducible installation. `main` changes over time.
+Use `main`: this repository only changes when something is fixed, so `main` always gives you the latest fixed version. Release tags (such as `v1.1.0`) are kept for anyone who prefers to pin an exact version.
 
 ### 2. Sign in and check setup
 
@@ -149,9 +149,9 @@ This is a **trusted local plugin, not an OS sandbox**. Muse and its approved too
 - The bridge validates every request (bounded sizes, fixed field sets) and talks to the adapter over stdio only — no network listener. It never renders the adapter's stderr, which may contain local paths.
 - When Muse asks permission for a tool: **Default** refuses and reports it in the conversation; **Accept edits** approves file-edit (`edit` kind) requests only. Approvals are one-time, never "always". No permission-bypass mode exists in this plugin.
 - Agent instructions and prompts are processed locally by the Muse client; Muse stores conversation transcripts, prompts, and tool results in its normal local state. This plugin does not encrypt those transcripts.
-- Updates are explicit. The manifest omits the optional update policy, so reimport a reviewed release tag to update; review source changes and computer-access grants before updating. `SHA256SUMS` detects changed bytes but is not a publisher signature.
+- Updates are explicit. The manifest omits the optional update policy, so reimport `main` (or a release tag) to update; review source changes and computer-access grants before updating. `SHA256SUMS` detects changed bytes but is not a publisher signature.
 
-Use an immutable release tag or commit when reproducibility matters. `main` changes over time.
+Use a release tag or commit instead of `main` when you need to reproduce an exact installation.
 
 ## Development
 
