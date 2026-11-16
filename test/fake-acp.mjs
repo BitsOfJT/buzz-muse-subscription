@@ -8,7 +8,16 @@
 // Set FAKE_ACP_NONEDIT=1 to ask permission for a non-edit tool instead.
 // Set FAKE_ACP_ALLOW_ALWAYS_ONLY=1 to offer allow_always but no allow_once.
 // Set FAKE_ACP_MAX_TOKENS=1 to end the prompt with stopReason max_tokens.
+// Set FAKE_ACP_STATE=<path> to record the MUSE_BIN this process was spawned
+// with (model-wrapper tests read it back).
+import { writeFileSync } from 'node:fs';
 import { StringDecoder } from 'node:string_decoder';
+
+if (process.env.FAKE_ACP_STATE) {
+  try {
+    writeFileSync(process.env.FAKE_ACP_STATE, JSON.stringify({ museBin: process.env.MUSE_BIN ?? null }));
+  } catch { /* state recording must never break the fake */ }
+}
 
 const decoder = new StringDecoder('utf8');
 let buffer = '';

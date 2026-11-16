@@ -46,14 +46,14 @@ In Buzz, open **Settings → Plugins → Manage plugins → Add**. In the Git im
 | Field | Value |
 | --- | --- |
 | Git or GitHub repository | `https://github.com/BitsOfJT/buzz-muse-subscription` |
-| Ref | `v1.0.1` |
+| Ref | `v1.1.0` |
 | Folder | `dist` |
 
 Choose **Find**, review the plugin and its declared computer access, then **Install plugin** with **Enable plugin** selected.
 
 Built artifacts are committed. Buzz does not run npm or compile the source. Alternatively, download the repository, extract it, and use **Add from folder → Browse** to select its `dist` directory — not the repository root or `src`.
 
-Use `v1.0.1` or another reviewed release tag for reproducible installation. `main` changes over time.
+Use `v1.1.0` or another reviewed release tag for reproducible installation. `main` changes over time.
 
 ### 2. Sign in and check setup
 
@@ -73,6 +73,7 @@ Create an agent and choose **Muse (subscription)** in the **Harness** menu. Choo
 
 | Setting | What to choose |
 | --- | --- |
+| Model | **Muse default** follows the Muse client's own model setting on the host (Wonder, unless you changed it in Muse). **Muse Wonder**, **Muse Spark**, or **Muse Ember** pin this agent to that model. The choice is per agent, and it applies to turns the agent runs after the change; switching models keeps the conversation. |
 | Working folder | The default `~/.buzz/muse-subscription-workspace` is created automatically. For a project, enter an existing absolute or `~/…` directory on the **agent host**, not on another computer. |
 | muse-acp executable | Leave blank for automatic detection. Otherwise enter the absolute path to the `muse-acp` executable on the agent host. |
 | Permissions | Start with **Default**. Choose **Accept edits** only if you want file edits approved automatically; it never approves shell commands or other tools. |
@@ -120,7 +121,7 @@ When a new Muse session is required, Buzz supplies a bounded recent history, not
 These come from muse-acp 0.1.x, not from Buzz:
 
 - **No Buzz MCP tools.** muse-acp 0.1.x accepts no MCP servers, so Buzz's own tools (posting as the agent, reading files for the agent, and so on) cannot be handed to Muse yet. The agent's final message is posted as its reply instead.
-- **No model picker.** muse-acp exposes no per-session model selection; the Muse client uses its own configured default model. The harness therefore offers a single honest "Muse default model" entry rather than a picker that does nothing.
+- **Model choice is per agent, not per session.** muse-acp exposes no per-session model selection, so the harness cannot switch models mid-conversation. Instead, each agent has a Model setting — Muse default, Wonder, Spark, or Ember — that the bridge applies when it starts the Muse engine host for a turn (through the client's own `serve --model` option), so it governs every turn that host serves, resumed sessions included.
 - **Instructions ride as a preamble.** There is no system-prompt channel in muse-acp 0.1.x, so Buzz's session context and your agent instructions are prepended to the first turn of each new conversation. Resumed conversations already carry them.
 - **Session resume is best-effort.** Turns resume through ACP `session/load`. If the engine no longer has the session, the bridge starts a fresh one and Buzz supplies recent conversation history.
 - **Replies are capped at 4 MB.** A single reply longer than that is truncated and marked as truncated rather than failing the turn.
@@ -176,10 +177,11 @@ The reference contracts are [Buzz v1.0.2](https://github.com/block/buzz-app/tree
 
 ### Verification
 
-- **Tests:** 12 bridge tests drive the shipped bridge against a fake ACP agent (`test/fake-acp.mjs`), covering request validation, environment hygiene, the permission policy (default-deny and accept-edits), session resume including history-replay handling, and output caps. They spend no subscription requests.
+- **Tests:** 15 bridge tests drive the shipped bridge against a fake ACP agent (`test/fake-acp.mjs`), covering request validation, environment hygiene, the permission policy (default-deny and accept-edits), session resume including history-replay handling, output caps, and model selection (a pinned model reaches the adapter through the generated launcher; the default spawns the genuine binary directly; unknown models are rejected). They spend no subscription requests.
 - **Bundle smoke:** after building, the compiled `dist/plugin.js` bridge is exercised through the same `node -e` boundary Buzz uses, against the fake adapter — status and a full scripted turn.
 - **macOS desktop (build machine):** the built bridge, run against the real muse-acp 0.1.0, completed the genuine engine handshake (`muse serve` answered; Muse 1.4.20 detected), and a fresh clone of the published release verifies `SHA256SUMS` and passes all tests.
-- **Not yet exercised end-to-end:** a model turn inside the Buzz UI. The remote test prompt reached the engine and created a session, but the turn was cancelled because the host's Muse sign-in sits behind the macOS login Keychain, which refuses non-desktop (SSH) processes. The first in-Buzz message is the remaining check; the plugin's own layers are all verified up to that boundary.
+- **End-to-end in the Buzz UI (Nov 15, 2026):** the plugin was imported into the Buzz desktop app from the v1.0.2 release tag, an agent was created on the harness, and its first message was answered correctly in the UI (`BUZZ_MUSE_OK`) — the full path from Buzz through the bridge and adapter to the subscribed Muse client is proven.
+- **macOS note:** turns driven remotely (over SSH) remain blocked — the host's Muse sign-in sits behind the macOS login Keychain, which refuses non-desktop processes, so a remote test prompt reaches the engine and creates a session but the turn is cancelled. Run the agent from the desktop session, as above.
 
 Do not commit credentials, private emails, hostnames, real account paths, network addresses, or unredacted screenshots. Use synthetic fixtures and relative/home-relative examples.
 

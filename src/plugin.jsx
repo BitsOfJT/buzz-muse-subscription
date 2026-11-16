@@ -1,5 +1,5 @@
 import bridgeSource from './bridge-cli.mjs?source';
-import { configOf, createRuntime, defaults } from './runtime.mjs';
+import { configOf, createRuntime, defaults, MODELS, modelLabel } from './runtime.mjs';
 import { createSetup } from './setup.mjs';
 import { createUI } from './ui.jsx';
 
@@ -19,18 +19,20 @@ export function apply(ctx) {
     id: 'muse-subscription', title: 'Muse (subscription)',
     description: 'Your Muse subscription through the genuine Muse client — no API key.',
     defaults: () => ({ config: defaults() }),
-    summary: () => 'Muse · subscription',
+    summary: agent => `${modelLabel(configOf(agent.config).model)} · subscription`,
     CreateConfiguration: Create,
     tabs: [{ id: 'settings', title: 'Settings', role: 'settings', component: Settings }],
     provider: {
       snapshot: () => setup.snapshot().connection,
       subscribe: setup.subscribe, check: setup.refresh, DialogBody: Connection,
     },
-    // muse-acp 0.1.x exposes no per-session model choice; the Muse client
-    // uses its own configured default. One honest entry, not a fake picker.
-    models: () => ({
-      current: 'default',
-      models: [{ id: 'default', label: 'Muse default model', efforts: [] }],
+    // muse-acp 0.1.x exposes no per-session model choice, so the model is an
+    // agent setting: the bridge applies it when the engine host starts, and
+    // it governs every turn that host serves. 'default' leaves the Muse
+    // client's own configured model in charge.
+    models: agent => ({
+      current: configOf(agent.config).model,
+      models: MODELS.map(({ id, label }) => ({ id, label, efforts: [] })),
     }),
     protectionUnavailable: 'Standard Muse tool permissions only; this harness does not implement Buzz protection or OS sandboxing.',
     retire: runtime.retire, timeoutMs: 30 * 60 * 1000, run: runtime.run,

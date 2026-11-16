@@ -2,14 +2,27 @@
 // association, bridge invocation, reply publication, and retirement.
 import { bridgeRequest, SessionLanes, SessionStore, sessionKey, TurnOutput, safeMessage, abortError, finalReply } from './session.mjs';
 
+// The models an agent can be pinned to. 'default' means no pin: the Muse
+// client uses its own configured model. Any other id is applied by the
+// bridge when it starts the engine host (see bridge.mjs).
+export const MODELS = [
+  { id: 'default', label: 'Muse default' },
+  { id: 'muse-wonder-1.0', label: 'Muse Wonder' },
+  { id: 'muse-spark-1.3', label: 'Muse Spark' },
+  { id: 'muse-ember-1.0', label: 'Muse Ember' },
+];
+
+export const modelLabel = id => MODELS.find(entry => entry.id === id)?.label ?? 'Muse default';
+
 export const defaults = () => ({
-  cwd: '~/.buzz/muse-subscription-workspace',
+  model: 'default', cwd: '~/.buzz/muse-subscription-workspace',
   permissionMode: 'default', instructions: '', scope: 'thread', adapter: '',
 });
 
 export function configOf(config) {
   const value = { ...defaults(), ...config };
   for (const name of ['cwd', 'adapter', 'instructions']) value[name] = String(value[name] ?? '').trim();
+  value.model = MODELS.some(entry => entry.id === value.model) ? value.model : 'default';
   return value;
 }
 
@@ -62,8 +75,10 @@ export function createRuntime(ctx, source) {
       // is built without Buzz tool guidance; replies arrive as final text.
       const systemPrompt = await kit.systemPrompt(delivery, { scope: config.scope, cwd, instructions, tools: false });
       current();
-      // Adapter path and conversation location define the session; permission
-      // and instruction changes are per-turn and never move a session.
+      // Adapter path and conversation location define the session; model,
+      // permission and instruction changes are per-turn and never move a
+      // session — each run starts a fresh engine host, and the host's model
+      // applies to every session it loads, resumed ones included.
       const fingerprint = JSON.stringify([cwd, config.adapter, config.scope]);
       const previous = await store.get(key, fingerprint);
       current();
@@ -75,6 +90,7 @@ export function createRuntime(ctx, source) {
       const output = new TurnOutput(tool => delivery.step?.(tool));
       const code = await bridgeRequest(ctx.host, source, {
         action: 'run', adapter: config.adapter || undefined,
+        model: (delivery.model?.trim() || config.model) || undefined,
         prompt: prompt.text, systemPrompt,
         sessionId: previous?.id, resume: Boolean(previous),
         permissionMode: config.permissionMode, cwd,

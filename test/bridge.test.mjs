@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { chmod, mkdtemp, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { adapterEnv, handleRequest, validateRequest } from '../src/bridge.mjs';
+import { configOf } from '../src/runtime.mjs';
 
 const fakePath = fileURLToPath(new URL('./fake-acp.mjs', import.meta.url));
 
@@ -184,6 +185,77 @@ test('max_tokens stop reason counts as a successful turn', async () => {
   } finally {
     delete process.env.FAKE_ACP_MAX_TOKENS;
   }
+});
+
+// A throwaway HOME holding a fake `muse` binary, so model runs resolve the
+// fake client and write their wrapper under the fake home — never the real
+// one. Returns the paths the assertions need.
+async function fakeHome() {
+  const home = await mkdtemp(join(tmpdir(), 'buzz-muse-home-'));
+  const bin = join(home, '.local', 'bin');
+  await mkdir(bin, { recursive: true });
+  const muse = join(bin, 'muse');
+  await writeFile(muse, '#!/bin/sh\necho "muse 9.9.9"\n');
+  await chmod(muse, 0o755);
+  return { home, muse, state: join(home, 'acp-state.json') };
+}
+
+async function runWithFakeHome(request) {
+  const saved = { HOME: process.env.HOME, PATH: process.env.PATH, FAKE_ACP_STATE: process.env.FAKE_ACP_STATE, MUSE_BIN: process.env.MUSE_BIN };
+  const fake = await fakeHome();
+  process.env.HOME = fake.home;
+  process.env.PATH = [join(fake.home, '.local', 'bin'), dirname(process.execPath), '/usr/bin', '/bin'].join(':');
+  process.env.FAKE_ACP_STATE = fake.state;
+  delete process.env.MUSE_BIN;
+  try {
+    const adapter = await fakeAdapterScript();
+    const cwd = await mkdtemp(join(tmpdir(), 'buzz-muse-cwd-'));
+    const result = await runRequest({ ...request, adapter, cwd });
+    return { ...result, fake };
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+}
+
+test('run with a pinned model spawns the adapter with a MUSE_BIN wrapper', async () => {
+  const { code, fake } = await runWithFakeHome({
+    action: 'run', prompt: 'Say hello.', systemPrompt: '',
+    sessionId: null, resume: false, permissionMode: 'default', model: 'muse-spark-1.3',
+  });
+  assert.equal(code, 0);
+  const spawned = JSON.parse(await readFile(fake.state, 'utf8'));
+  const wrapper = join(fake.home, '.buzz', 'muse-subscription', 'bin', 'muse-muse-spark-1.3');
+  assert.equal(spawned.museBin, wrapper);
+  const contents = await readFile(wrapper, 'utf8');
+  assert.ok(contents.includes(fake.muse), 'wrapper must invoke the resolved genuine muse binary');
+  assert.ok(contents.includes('serve --model muse-spark-1.3'), 'wrapper must add --model after serve');
+  const mode = (await stat(wrapper)).mode;
+  assert.ok(mode & 0o111, 'wrapper must be executable');
+});
+
+test('run with the default model spawns the adapter with the plain binary', async () => {
+  const { code, fake } = await runWithFakeHome({
+    action: 'run', prompt: 'Say hello.', systemPrompt: '',
+    sessionId: null, resume: false, permissionMode: 'default', model: 'default',
+  });
+  assert.equal(code, 0);
+  const spawned = JSON.parse(await readFile(fake.state, 'utf8'));
+  assert.equal(spawned.museBin, fake.muse);
+  await assert.rejects(stat(join(fake.home, '.buzz')), 'no wrapper state dir may be created');
+});
+
+test('unknown models normalize to default and are rejected by the bridge', () => {
+  assert.equal(configOf({ model: 'claude-opus-4' }).model, 'default');
+  assert.equal(configOf({ model: 'muse-spark-1.3' }).model, 'muse-spark-1.3');
+  assert.equal(configOf({}).model, 'default');
+  assert.throws(() => validateRequest({
+    action: 'run', prompt: 'hi', resume: false, permissionMode: 'default', cwd: '/tmp', model: 'claude-opus-4',
+  }));
+  assert.equal(validateRequest({
+    action: 'run', prompt: 'hi', resume: false, permissionMode: 'default', cwd: '/tmp', model: 'muse-spark-1.3',
+  }).model, 'muse-spark-1.3');
 });
 
 test('bridge CLI entrypoint answers a status request over stdio', async () => {

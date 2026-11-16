@@ -1,4 +1,4 @@
-import { configOf, configReady, defaults, saveSettings } from './runtime.mjs';
+import { configOf, configReady, defaults, MODELS, saveSettings } from './runtime.mjs';
 import { safeMessage } from './session.mjs';
 
 export function createUI(React, setup, runtime) {
@@ -60,8 +60,8 @@ export function createUI(React, setup, runtime) {
         </Copy>
         <Copy>
           Current limits of the adapter (muse-acp 0.1.x): Buzz's own MCP tools cannot be handed to the agent yet,
-          so the agent replies with its final message instead of posting through Buzz tools; the model is the
-          Muse client's own default — there is no per-agent model picker to set. Agent instructions are
+          so the agent replies with its final message instead of posting through Buzz tools; the model is chosen
+          per agent in the agent settings and applied when the Muse engine host starts. Agent instructions are
           delivered as a preamble on the first turn of each new conversation.
         </Copy>
         <Copy>
@@ -78,6 +78,16 @@ export function createUI(React, setup, runtime) {
     const field = (name, next) => onChange({ ...value, [name]: next });
     return <Form>
       <fieldset disabled={disabled} style={{ display: 'grid', gap: 16 }}>
+        <label>Model
+          <select className="bitsofjt-muse-control" value={value.model} onChange={event => field('model', event.target.value)}>
+            {MODELS.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
+          </select>
+        </label>
+        <Copy>
+          Per agent, applying to turns run after the change; switching keeps the conversation.
+          Muse default follows the Muse client's own model setting on the host — currently Wonder
+          unless you changed it there. The named models pin this agent to that model instead.
+        </Copy>
         <label>Working folder
           <input className="bitsofjt-muse-control" value={value.cwd} onChange={event => field('cwd', event.target.value)} />
         </label>
@@ -159,7 +169,7 @@ export function createUI(React, setup, runtime) {
       setMessage('');
       try {
         await saveSettings(save, draft);
-        setMessage('Settings saved for future turns. Active turns continue; instruction and permission changes preserve conversations.');
+        setMessage('Settings saved for future turns. Active turns continue; model, instruction and permission changes preserve conversations.');
       } catch (error) { setMessage(safeMessage(error)); }
       finally { setBusy(false); }
     }
